@@ -60,6 +60,6 @@ sent_at: TIMESTAMP, DEFAULT CURRENT_TIMESTAMP
 - Users can leave many **reviews** on properties.
 
 ## ERD Diagram
-![ERD Diagram](./air-bnb_erd.png)
+![ERD Diagram](air-bnb_erd.png)
 
 
