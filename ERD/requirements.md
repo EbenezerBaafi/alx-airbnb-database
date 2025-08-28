@@ -62,10 +62,4 @@ sent_at: TIMESTAMP, DEFAULT CURRENT_TIMESTAMP
 ## ERD Diagram
 ![ERD Diagram](./air-bnb_erd.png)
 
-### ERD Update
-- **Original ERD**: `air-bnb-erd.png`
-- **Updated ERD (3NF applied)**: `air-bnb-erd-3nf.png`
-- Changes:
-  - Introduced `PaymentMethod` table for better normalization.
-  - Removed ENUM from `Payment` table.
 
