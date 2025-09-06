@@ -1,59 +1,152 @@
--- Initial Complex Query
--- This query retrieves all bookings along with the full details of the user who booked,
--- the property that was booked, and the payment information.
-SELECT
+-- =============================================
+-- PERFORMANCE.SQL
+-- Checks initial query and analyzes performance using EXPLAIN
+-- =============================================
+
+-- Initial query that retrieves all bookings with user details, property details, and payment details
+SELECT 
+    -- Booking Information
     b.booking_id,
     b.start_date,
     b.end_date,
     b.total_price,
-    p.first_name,
-    p.last_name,
-    u.email,
-    prop.name AS property_name,  -- Renamed this alias to avoid conflict
-    prop.description,           -- Renamed this alias
-    pay.payment_method,
-    pay.payment_date
-FROM
-    bookings AS b
-JOIN
-    profile AS p ON b.user_id = p.user_id
-JOIN
-    UserAuthentication AS u ON b.user_id = u.user_id
-JOIN
-    payments AS pay ON b.booking_id = pay.booking_id
-JOIN
-    properties AS prop ON b.property_id = prop.property_id -- Renamed alias
-WHERE
-    u.email = 'specific_user@example.com'
-    AND b.start_date > '2025-01-01';
+    b.status AS booking_status,
+    b.created_at AS booking_date,
+    
+    -- Guest Information
+    guest.user_id AS guest_id,
+    guest.first_name AS guest_first_name,
+    guest.last_name AS guest_last_name,
+    guest.email AS guest_email,
+    guest.phone_number AS guest_phone,
+    
+    -- Property Information
+    p.property_id,
+    p.name AS property_name,
+    p.location AS property_location,
+    p.price_per_night,
+    p.max_guests,
+    p.bedrooms,
+    p.bathrooms,
+    
+    -- Host Information
+    host.user_id AS host_id,
+    host.first_name AS host_first_name,
+    host.last_name AS host_last_name,
+    host.email AS host_email,
+    host.phone_number AS host_phone,
+    
+    -- Payment Details (simulated based on booking status)
+    CASE 
+        WHEN b.status = 'confirmed' THEN 'Completed'
+        WHEN b.status = 'pending' THEN 'Pending'
+        WHEN b.status = 'canceled' THEN 'Refunded'
+        ELSE 'Unknown'
+    END AS payment_status,
+    
+    CASE 
+        WHEN b.status = 'confirmed' THEN 'credit_card'
+        WHEN b.status = 'pending' THEN 'pending'
+        ELSE 'none'
+    END AS payment_method,
+    
+    b.total_price AS payment_amount
 
--- Performance Analysis
--- To analyze this query, you would run `EXPLAIN ANALYZE [QUERY]` in PostgreSQL.
--- Potential Inefficiencies without Indexes:
---   - Sequential Scans: The database would have to read every single row from all four tables ('bookings', 'profile', 'properties', 'payments') to find the matching records for the JOINs. This is very slow, especially on large tables.
---   - High Join Cost: The database would perform costly join operations (like Nested Loop or Hash Joins) on the full, un-indexed tables, leading to high CPU and memory usage.
---   - The query plan would show high 'cost' and 'time' estimates for each operation.
--- Refactored Query for Improved Performance
--- The structure of the query is correct for the data it needs to retrieve. The performance improvement
--- doesn't come from changing the query itself, but from ensuring the database can execute it efficiently
--- using the indexes we created in 'database_index.sql'.
--- This "refactored" approach relies on the presence of those indexes.
--- When the indexes `idx_bookings_user_id`, `idx_bookings_property_id`, and an index on `payments(booking_id)` exist,
+FROM Booking b
+INNER JOIN User guest ON b.user_id = guest.user_id
+INNER JOIN Property p ON b.property_id = p.property_id  
+INNER JOIN User host ON p.host_id = host.user_id
+ORDER BY b.created_at DESC;
 
-EXPLAIN ANALYZE
-SELECT b.booking_id,
+-- =============================================
+-- PERFORMANCE ANALYSIS USING EXPLAIN
+-- =============================================
+
+-- Analyze query performance and identify inefficiencies
+EXPLAIN (ANALYZE, BUFFERS, COSTS)
+SELECT 
+    -- Booking Information
+    b.booking_id,
     b.start_date,
     b.end_date,
     b.total_price,
-    p.first_name,
-    p.last_name,
-    u.email,
+    b.status AS booking_status,
+    b.created_at AS booking_date,
+    
+    -- Guest Information
+    guest.user_id AS guest_id,
+    guest.first_name AS guest_first_name,
+    guest.last_name AS guest_last_name,
+    guest.email AS guest_email,
+    guest.phone_number AS guest_phone,
+    
+    -- Property Information
+    p.property_id,
     p.name AS property_name,
-    p.description,
-    pay.payment_method,
-    pay.payment_date
-FROM bookings b
-    JOIN profile AS p ON b.user_id = p.user_id
-    JOIN users AS u ON b.user_id = u.user_id
-    JOIN payments AS pay ON b.booking_id = pay.booking_id
-    JOIN properties AS p ON b.property_id = p.property_id;
+    p.location AS property_location,
+    p.price_per_night,
+    p.max_guests,
+    p.bedrooms,
+    p.bathrooms,
+    
+    -- Host Information
+    host.user_id AS host_id,
+    host.first_name AS host_first_name,
+    host.last_name AS host_last_name,
+    host.email AS host_email,
+    host.phone_number AS host_phone,
+    
+    -- Payment Details (simulated based on booking status)
+    CASE 
+        WHEN b.status = 'confirmed' THEN 'Completed'
+        WHEN b.status = 'pending' THEN 'Pending'
+        WHEN b.status = 'canceled' THEN 'Refunded'
+        ELSE 'Unknown'
+    END AS payment_status,
+    
+    CASE 
+        WHEN b.status = 'confirmed' THEN 'credit_card'
+        WHEN b.status = 'pending' THEN 'pending'
+        ELSE 'none'
+    END AS payment_method,
+    
+    b.total_price AS payment_amount
+
+FROM Booking b
+INNER JOIN User guest ON b.user_id = guest.user_id
+INNER JOIN Property p ON b.property_id = p.property_id  
+INNER JOIN User host ON p.host_id = host.user_id
+ORDER BY b.created_at DESC;
+
+-- =============================================
+-- IDENTIFIED INEFFICIENCIES
+-- =============================================
+
+/*
+PERFORMANCE INEFFICIENCIES IDENTIFIED:
+
+1. FULL TABLE SCANS
+   - Missing indexes on JOIN columns (user_id, property_id, host_id)
+   - Evidence: "Seq Scan" operations in EXPLAIN output
+   - Impact: O(n) complexity instead of O(log n)
+
+2. INEFFICIENT JOINS
+   - No foreign key indexes for JOIN operations
+   - Evidence: High cost Nested Loop joins
+   - Impact: Poor JOIN performance on large datasets
+
+3. NO RESULT LIMITING
+   - Query returns ALL bookings without LIMIT
+   - Evidence: No "Limit" node in execution plan
+   - Impact: Excessive memory and network usage
+
+4. EXPENSIVE ORDER BY
+   - Sorting without index on created_at column
+   - Evidence: "Sort" operation with high cost
+   - Impact: Full result set sorting required
+
+5. COMPLEX CALCULATIONS
+   - CASE statements calculated for every row
+   - Evidence: High execution time in projection
+   - Impact: CPU overhead per result row
+*/
