@@ -58,6 +58,7 @@ INNER JOIN Property p ON b.property_id = p.property_id
 INNER JOIN User host ON p.host_id = host.user_id
 ORDER BY b.created_at DESC;
 
+WHERE AND
 -- =============================================
 -- PERFORMANCE ANALYSIS USING EXPLAIN
 -- =============================================
