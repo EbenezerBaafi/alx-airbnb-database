@@ -160,3 +160,4 @@ IMPORTANT MAINTENANCE CONSIDERATIONS:
 
 7. Consider the impact on INSERT/UPDATE/DELETE performance when adding indexes
 */
+["EXPLAIN ANALYZE"]
